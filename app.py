@@ -61,7 +61,8 @@ agent = CodeAgent(
     planning_interval=None,
     name=None,
     description=None,
-    prompt_templates=prompt_templates
+    prompt_templates=prompt_templates,
+    additional_authorized_imports=['pytz', 'datetime'] 
 )
 
 GradioUI(agent).launch()
