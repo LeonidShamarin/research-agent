@@ -37,8 +37,7 @@ image_generation_tool = load_tool("agents-course/text-to-image", trust_remote_co
 model = HfApiModel(
     max_tokens=2096,
     temperature=0.5,
-    # Цей endpoint працює стабільніше для учасників курсу
-    model_id='https://pflgm2locj2t89co.us-east-1.aws.endpoints.huggingface.cloud',
+    model_id='Qwen/Qwen2.5-Coder-32B-Instruct', # Повертаємо стандартну модель
     custom_role_conversions=None,
 )
 
