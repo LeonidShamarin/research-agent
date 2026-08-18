@@ -30,6 +30,7 @@ import os
 import threading
 import time
 from collections import deque
+from pathlib import Path
 
 import gradio as gr
 import pytz
@@ -63,7 +64,7 @@ HF_TOKEN = (os.environ.get("HF_TOKEN") or "").strip()
 
 # Три обмеження, а не одне. Крок-ліміт не рятує від довгого кроку, таймаут не
 # рятує від натовпу, а погодинний ліміт не рятує від одного запиту, що зациклився.
-MAX_STEPS = int(os.environ.get("MAX_STEPS", "6"))
+MAX_STEPS = int(os.environ.get("MAX_STEPS", "8"))
 RUN_TIMEOUT_S = int(os.environ.get("RUN_TIMEOUT_S", "120"))
 RUNS_PER_HOUR = int(os.environ.get("RUNS_PER_HOUR", "20"))
 
@@ -129,9 +130,39 @@ _agent_lock = threading.Lock()
 _run_lock = threading.Lock()
 
 
-def build_agent() -> CodeAgent:
+def load_prompt_templates() -> dict:
+    """
+    `prompts.yaml` з курсу містить `system_prompt`, `planning` і `managed_agent`,
+    але не `final_answer`. Саме цей блок smolagents бере, коли агент вичерпав
+    ліміт кроків і має скласти відповідь з того, що встиг — і без нього запуск
+    падає з `KeyError: 'final_answer'` замість того, щоб чесно підсумувати.
+    Тобто ламався рівно той випадок, заради якого ліміт і ставлять.
+
+    Відсутні ключі добираються з дефолтів самого smolagents, а не вписуються
+    сюди руками: тоді наступний доданий ключ не поламає Space так само тихо.
+    """
     with open("prompts.yaml", "r", encoding="utf-8") as stream:
-        prompt_templates = yaml.safe_load(stream)
+        templates = yaml.safe_load(stream)
+
+    try:
+        import smolagents
+
+        defaults_path = Path(smolagents.__file__).parent / "prompts" / "code_agent.yaml"
+        defaults = yaml.safe_load(defaults_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — без дефолтів працюємо як є
+        logger.warning("Дефолтні шаблони smolagents не знайдені")
+        return templates
+
+    added = [key for key in defaults if key not in templates]
+    for key in added:
+        templates[key] = defaults[key]
+    if added:
+        logger.info("Шаблони добрані з дефолтів smolagents: %s", ", ".join(added))
+    return templates
+
+
+def build_agent() -> CodeAgent:
+    prompt_templates = load_prompt_templates()
 
     model = HfApiModel(
         max_tokens=2096,
