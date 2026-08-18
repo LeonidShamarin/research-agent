@@ -130,6 +130,25 @@ _agent_lock = threading.Lock()
 _run_lock = threading.Lock()
 
 
+# Дописується до системного промпта, а не в prompts.yaml: правило моє, а файл
+# апстрімовий, і так видно, де закінчується курс і починається моя правка.
+#
+# Приводу було два, обидва спостережені на живому Space: агент, у якого не
+# відкрилась сторінка, вигадав і назву джерела, і посилання на нього; а на
+# питання про поточні події відповідав з пам'яті моделі, не позначаючи цього.
+GROUNDING_RULE = """
+
+Rules about sources, on top of everything above:
+1. Only cite a URL that you actually opened with `visit_webpage` during this run.
+   Never invent, guess or reconstruct a link, even if you are confident the page
+   exists. A plausible-looking link that you did not open is a wrong answer.
+2. If search or a page fetch failed, say so plainly in the final answer instead
+   of quietly answering from memory.
+3. If you answer from the model's own knowledge rather than from a source you
+   opened, state that explicitly and warn that it may be out of date.
+"""
+
+
 def load_prompt_templates() -> dict:
     """
     `prompts.yaml` з курсу містить `system_prompt`, `planning` і `managed_agent`,
@@ -151,13 +170,15 @@ def load_prompt_templates() -> dict:
         defaults = yaml.safe_load(defaults_path.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001 — без дефолтів працюємо як є
         logger.warning("Дефолтні шаблони smolagents не знайдені")
-        return templates
+        defaults = {}
 
     added = [key for key in defaults if key not in templates]
     for key in added:
         templates[key] = defaults[key]
     if added:
         logger.info("Шаблони добрані з дефолтів smolagents: %s", ", ".join(added))
+
+    templates["system_prompt"] = templates["system_prompt"] + GROUNDING_RULE
     return templates
 
 
@@ -339,11 +360,15 @@ INTRO = f"""
 Питати можна українською або англійською.
 """
 
+# Приклади підібрані під те, що агент справді робить добре: читання конкретної
+# сторінки, робота з інструментом і пошук зі стабільною відповіддю. Питання про
+# поточні події навмисно прибране — на ньому слабка модель охоче вигадує джерело,
+# і як демо це показує не агента, а його межу.
 EXAMPLES = [
-    "Знайди, що нового вийшло у smolagents цього року, і дай посилання на джерело.",
+    "Відкрий https://huggingface.co/docs/smolagents/index і поясни, чим CodeAgent відрізняється від ToolCallingAgent.",
     "Котра зараз година в Токіо і на скільки це відрізняється від Києва?",
-    "Хто зараз тренує збірну України з футболу? Наведи джерело.",
-    "Відкрий https://huggingface.co/docs/smolagents/index і скажи, чим CodeAgent відрізняється від ToolCallingAgent.",
+    "Знайди офіційний репозиторій бібліотеки smolagents і дай посилання на нього.",
+    "Порівняй час у Києві, Лондоні та Нью-Йорку прямо зараз.",
 ]
 
 with gr.Blocks(title="Агент-дослідник", fill_height=True) as demo:
