@@ -1,6 +1,16 @@
-markdownify
+# smolagents закріплений: Gradio_UI.py прийшов із курсу під цю саме версію, і
+# на новіших її розбір кроків агента розходиться з форматом потоку.
 smolagents==1.13.0
-requests
+
+# Інструменти агента: пошук і читання сторінки.
 duckduckgo_search
-pandas
+markdownify
+requests
+
 pytz
+PyYAML
+
+# Потрібні не Space-у, а локальному запуску того самого app.py: перший — для
+# мереж з TLS-інспекцією, другий — щоб підхопити .env з токеном.
+truststore
+python-dotenv
