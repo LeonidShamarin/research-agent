@@ -59,7 +59,12 @@ try:
 except ImportError:
     pass
 
-MODEL_ID = os.environ.get("MODEL_ID", "Qwen/Qwen2.5-Coder-32B-Instruct")
+# Модель обрана заміром, а не за замовчуванням із шаблону. На українському
+# питанні «Котра зараз година в Токіо?» Qwen2.5-Coder-32B витрачав 4 кроки і
+# 18.3 с та відповідав «2026» — він читав питання як «який зараз рік». Llama 3.3
+# 70B на тому самому питанні: 2 кроки, 4.0 с, правильний час. Демо двомовне,
+# тому розуміння запиту тут важить більше за спеціалізацію на коді.
+MODEL_ID = os.environ.get("MODEL_ID", "meta-llama/Llama-3.3-70B-Instruct")
 HF_TOKEN = (os.environ.get("HF_TOKEN") or "").strip()
 
 # Три обмеження, а не одне. Крок-ліміт не рятує від довгого кроку, таймаут не
@@ -146,6 +151,8 @@ Rules about sources, on top of everything above:
    of quietly answering from memory.
 3. If you answer from the model's own knowledge rather than from a source you
    opened, state that explicitly and warn that it may be out of date.
+4. The task may be written in Ukrainian. Read it exactly as asked — do not
+   substitute a different question — and answer in the language it was asked in.
 """
 
 
