@@ -77,7 +77,10 @@ GITHUB_URL = "https://github.com/LeonidShamarin"
 
 @tool
 def get_current_time_in_timezone(timezone: str) -> str:
-    """A tool that fetches the current local time in a specified timezone.
+    """Returns the current local time in a timezone, already formatted for the user.
+
+    The returned string is a complete, human-readable answer. Pass it to
+    `final_answer` as it is — do not parse it, do not slice it, do not reformat it.
 
     Args:
         timezone: A valid IANA timezone name, e.g. 'Europe/Kyiv' or 'America/New_York'.
