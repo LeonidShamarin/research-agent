@@ -35,7 +35,7 @@ from pathlib import Path
 import gradio as gr
 import pytz
 import yaml
-from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, tool
+from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, Model, OpenAIServerModel, tool
 from smolagents.agent_types import AgentAudio, AgentImage, AgentText, handle_agent_output_types
 from smolagents.memory import ActionStep
 
@@ -195,15 +195,76 @@ def load_prompt_templates() -> dict:
     return templates
 
 
+# Резервні OpenAI-сумісні бекенди на наших ключах. Основна модель — HF-інференс
+# (HfApiModel). Якщо HF недоступний (401 без токена, квота, збій) — пробуємо ці по
+# черзі. Порядок: чотири спільні ключі з ai-keys.env, далі ключі2.txt в останню
+# чергу; відсутні пропускаються, дублі (провайдер, ключ) згортаються. Без жодного
+# додаткового ключа агент працює рівно як раніше — тільки на HF.
+_OPENAI_COMPAT = {
+    "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash"),
+    "openai": ("https://api.openai.com/v1", "gpt-4o-mini"),
+    "xai": ("https://api.x.ai/v1", "grok-2-latest"),
+}
+_BACKUP_CHAIN = [
+    ("gemini", "GEMINI_API_KEY"), ("groq", "GROQ_API_KEY"),
+    ("openai", "OPENAI_API_KEY"), ("xai", "XAI_API_KEY"),
+    ("gemini", "GEMINI_API_KEY_2"), ("gemini", "GEMINI_API_KEY_3"), ("groq", "GROQ_API_KEY_2"),
+]
+
+
+class FallbackModel(Model):
+    """Основна модель, далі резервні. На будь-якому збої бекенда беремо наступний;
+    лічильники токенів успішного бекенда переносимо на себе, щоб UI їх бачив.
+    Кидаємо помилку лише коли відмовили всі."""
+
+    def __init__(self, members: list[tuple[str, Model]]):
+        super().__init__()
+        if not members:
+            raise ValueError("порожній ланцюжок моделей")
+        self.members = members
+
+    def __call__(self, messages, stop_sequences=None, grammar=None, tools_to_call_from=None, **kwargs):
+        errors: list[str] = []
+        for label, model in self.members:
+            try:
+                result = model(messages, stop_sequences=stop_sequences, grammar=grammar,
+                               tools_to_call_from=tools_to_call_from, **kwargs)
+            except Exception as exc:  # noqa: BLE001 — будь-який збій бекенда -> наступний
+                errors.append(f"{label}: {str(exc)[:150]}")
+                logger.warning("модель %s недоступна: %s", label, str(exc)[:200])
+                continue
+            self.last_input_token_count = getattr(model, "last_input_token_count", None)
+            self.last_output_token_count = getattr(model, "last_output_token_count", None)
+            return result
+        raise RuntimeError("усі моделі відмовили -> " + " | ".join(errors))
+
+
+def build_model() -> Model:
+    """HF-інференс як основна модель, OpenAI-сумісні ключі з оточення — як резерв.
+    Один бекенд — повертаємо його без обгортки."""
+    primary = HfApiModel(max_tokens=2096, temperature=0.5, model_id=MODEL_ID,
+                         custom_role_conversions=None)
+    members: list[tuple[str, Model]] = [(f"hf:{MODEL_ID}", primary)]
+    seen: set[tuple[str, str]] = set()
+    for provider, var in _BACKUP_CHAIN:
+        key = (os.environ.get(var) or "").strip()
+        if not key or (provider, key) in seen:
+            continue
+        seen.add((provider, key))
+        base_url, model_id = _OPENAI_COMPAT[provider]
+        members.append((f"{provider}:{var}",
+                        OpenAIServerModel(model_id=model_id, api_base=base_url, api_key=key)))
+    if len(members) == 1:
+        return primary
+    logger.info("Ланцюжок моделей: %s", ", ".join(label for label, _ in members))
+    return FallbackModel(members)
+
+
 def build_agent() -> CodeAgent:
     prompt_templates = load_prompt_templates()
 
-    model = HfApiModel(
-        max_tokens=2096,
-        temperature=0.5,
-        model_id=MODEL_ID,
-        custom_role_conversions=None,
-    )
+    model = build_model()
     return CodeAgent(
         model=model,
         tools=[

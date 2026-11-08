@@ -14,3 +14,4 @@ PyYAML
 # мереж з TLS-інспекцією, другий — щоб підхопити .env з токеном.
 truststore
 python-dotenv
+openai>=1.40,<2
