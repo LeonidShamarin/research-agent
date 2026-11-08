@@ -202,7 +202,7 @@ def load_prompt_templates() -> dict:
 # додаткового ключа агент працює рівно як раніше — тільки на HF.
 _OPENAI_COMPAT = {
     "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
-    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.5-flash-lite"),
     "openai": ("https://api.openai.com/v1", "gpt-4o-mini"),
     "xai": ("https://api.x.ai/v1", "grok-2-latest"),
 }
