@@ -486,7 +486,16 @@ with gr.Blocks(title="Агент-дослідник", fill_height=True) as demo:
         )
         send = gr.Button("Запустити", variant="primary", scale=1)
 
-    gr.Examples(examples=EXAMPLES, inputs=text_input, examples_per_page=4)
+    # Не gr.Examples: його фронтенд обрізає текст прикладу до ~60 символів і
+    # ставить «...», тож питання не прочитати повністю. Кнопки показують весь текст,
+    # а клік так само вставляє його в поле задачі.
+    gr.Markdown("**Приклади** (натисніть, щоб вставити в поле):")
+    with gr.Row(equal_height=True):
+        for example in EXAMPLES:
+            gr.Button(example, size="sm", variant="secondary", min_width=200,
+                      elem_classes="example-btn").click(
+                lambda text=example: text, None, text_input, queue=False
+            )
     gr.Markdown(
         "<sub>Space безкоштовний і засинає без трафіку — перше звернення після сну довше. "
         f"Пам'ять агента скидається між запусками навмисно. Код автора — [GitHub]({GITHUB_URL}).</sub>"
@@ -498,6 +507,9 @@ with gr.Blocks(title="Агент-дослідник", fill_height=True) as demo:
 if __name__ == "__main__":
     # concurrency_limit=1 — агент один на процес; черга краща за перемішані запуски.
     demo.queue(default_concurrency_limit=1, max_size=16).launch(
+        # Кнопки-приклади: перенос рядків замість обрізання, текст зліва.
+        css=".example-btn{white-space:normal!important;text-align:left!important;"
+            "height:auto!important;line-height:1.35}",
         server_name="0.0.0.0",
         server_port=int(os.environ.get("PORT", 7860)),
     )
