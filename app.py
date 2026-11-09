@@ -206,7 +206,7 @@ _OPENAI_COMPAT = {
     "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.5-flash-lite"),
     "openai": ("https://api.openai.com/v1", "gpt-4o-mini"),
-    "xai": ("https://api.x.ai/v1", "grok-2-latest"),
+    "xai": ("https://api.x.ai/v1", "grok-4.20-0309-non-reasoning"),
 }
 _BACKUP_CHAIN = [
     ("gemini", "GEMINI_API_KEY"), ("groq", "GROQ_API_KEY"),
@@ -464,6 +464,10 @@ EXAMPLES = [
     "Котра зараз година в Токіо і на скільки це відрізняється від Києва?",
     "Знайди офіційний репозиторій бібліотеки smolagents і дай посилання на нього.",
     "Порівняй час у Києві, Лондоні та Нью-Йорку прямо зараз.",
+    "Котра година в Сіднеї та Лос-Анджелесі, і чи там зараз робочий час (9:00-18:00)?",
+    "Відкрий https://pypi.org/project/smolagents/ і скажи, яка остання версія бібліотеки.",
+    "Знайди, хто створив мову Python і в якому році вийшла її перша версія. Дай джерело.",
+    "Відкрий https://huggingface.co/docs/smolagents/tutorials/tools і перелічи, якими способами там пропонують створити власний інструмент.",
 ]
 
 with gr.Blocks(title="Агент-дослідник", fill_height=True) as demo:
@@ -490,12 +494,13 @@ with gr.Blocks(title="Агент-дослідник", fill_height=True) as demo:
     # ставить «...», тож питання не прочитати повністю. Кнопки показують весь текст,
     # а клік так само вставляє його в поле задачі.
     gr.Markdown("**Приклади** (натисніть, щоб вставити в поле):")
-    with gr.Row(equal_height=True):
-        for example in EXAMPLES:
-            gr.Button(example, size="sm", variant="secondary", min_width=200,
-                      elem_classes="example-btn").click(
-                lambda text=example: text, None, text_input, queue=False
-            )
+    for start in range(0, len(EXAMPLES), 4):  # по 4 в ряд
+        with gr.Row(equal_height=True):
+            for example in EXAMPLES[start:start + 4]:
+                gr.Button(example, size="sm", variant="secondary", min_width=200,
+                          elem_classes="example-btn").click(
+                    lambda text=example: text, None, text_input, queue=False
+                )
     gr.Markdown(
         "<sub>Space безкоштовний і засинає без трафіку — перше звернення після сну довше. "
         f"Пам'ять агента скидається між запусками навмисно. Код автора — [GitHub]({GITHUB_URL}).</sub>"
