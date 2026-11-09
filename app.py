@@ -197,12 +197,12 @@ def load_prompt_templates() -> dict:
 
 # Резервні OpenAI-сумісні бекенди на наших ключах. Основна модель — HF-інференс
 # (HfApiModel). Якщо HF недоступний (401 без токена, квота, збій) — пробуємо ці по
-# черзі. Порядок: одразу після HF — Groq (та сама Llama 3.3 70B, що й основна),
-# далі решта спільних ключів з ai-keys.env, ключі2.txt в останню чергу; відсутні
+# черзі. Порядок: одразу після HF — Groq, далі решта спільних ключів з ai-keys.env, ключі2.txt в останню чергу; відсутні
 # пропускаються, дублі (провайдер, ключ) згортаються. Без жодного додаткового
 # ключа агент працює рівно як раніше — тільки на HF.
 _OPENAI_COMPAT = {
-    "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
+    # llama-3.3-70b-versatile Groq прибрав (404 з 11.2026) — беремо gpt-oss-120b.
+    "groq": ("https://api.groq.com/openai/v1", "openai/gpt-oss-120b"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.5-flash-lite"),
     "openai": ("https://api.openai.com/v1", "gpt-4o-mini"),
     "xai": ("https://api.x.ai/v1", "grok-2-latest"),
