@@ -197,9 +197,10 @@ def load_prompt_templates() -> dict:
 
 # Резервні OpenAI-сумісні бекенди на наших ключах. Основна модель — HF-інференс
 # (HfApiModel). Якщо HF недоступний (401 без токена, квота, збій) — пробуємо ці по
-# черзі. Порядок: чотири спільні ключі з ai-keys.env, далі ключі2.txt в останню
-# чергу; відсутні пропускаються, дублі (провайдер, ключ) згортаються. Без жодного
-# додаткового ключа агент працює рівно як раніше — тільки на HF.
+# черзі. Порядок: одразу після HF — Groq (та сама Llama 3.3 70B, що й основна),
+# далі решта спільних ключів з ai-keys.env, ключі2.txt в останню чергу; відсутні
+# пропускаються, дублі (провайдер, ключ) згортаються. Без жодного додаткового
+# ключа агент працює рівно як раніше — тільки на HF.
 _OPENAI_COMPAT = {
     "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.5-flash-lite"),
@@ -207,7 +208,7 @@ _OPENAI_COMPAT = {
     "xai": ("https://api.x.ai/v1", "grok-2-latest"),
 }
 _BACKUP_CHAIN = [
-    ("gemini", "GEMINI_API_KEY"), ("groq", "GROQ_API_KEY"),
+    ("groq", "GROQ_API_KEY"), ("gemini", "GEMINI_API_KEY"),
     ("openai", "OPENAI_API_KEY"), ("xai", "XAI_API_KEY"),
     ("gemini", "GEMINI_API_KEY_2"), ("gemini", "GEMINI_API_KEY_3"), ("groq", "GROQ_API_KEY_2"),
 ]
