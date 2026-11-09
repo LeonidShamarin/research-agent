@@ -228,6 +228,7 @@ class FallbackModel(Model):
 
     def __call__(self, messages, stop_sequences=None, grammar=None, tools_to_call_from=None, **kwargs):
         errors: list[str] = []
+        empty = None  # перша порожня відповідь: (модель, результат)
         for label, model in self.members:
             try:
                 result = model(messages, stop_sequences=stop_sequences, grammar=grammar,
@@ -243,11 +244,22 @@ class FallbackModel(Model):
             if not (isinstance(content, str) and content.strip()) and not getattr(result, "tool_calls", None):
                 errors.append(f"{label}: порожня відповідь")
                 logger.warning("модель %s повернула порожню відповідь", label)
+                if empty is None:
+                    empty = (model, result)
                 continue
-            self.last_input_token_count = getattr(model, "last_input_token_count", None)
-            self.last_output_token_count = getattr(model, "last_output_token_count", None)
+            self._take_counts(model)
             return result
+        # Порожньо в усіх, хто відповів: віддаємо порожню відповідь агенту, а не
+        # падаємо. Він запише помилку розбору в пам'ять і на наступному кроці
+        # спробує знову — так і відновлювався до цієї перевірки.
+        if empty is not None:
+            self._take_counts(empty[0])
+            return empty[1]
         raise RuntimeError("усі моделі відмовили -> " + " | ".join(errors))
+
+    def _take_counts(self, model) -> None:
+        self.last_input_token_count = getattr(model, "last_input_token_count", None)
+        self.last_output_token_count = getattr(model, "last_output_token_count", None)
 
 
 def build_model() -> Model:
@@ -425,7 +437,16 @@ def interact(prompt: str, messages: list):
         # 402 тут має конкретний і єдиний зміст — скінчились місячні кредити на
         # інференс. Показувати замість цього сирий HTTP-код означає змусити
         # відвідувача гадати, зламане демо чи просто вичерпане.
-        if "402" in reason or "credit" in reason.lower() or "payment" in reason.lower():
+        # Але коли збоїть увесь ланцюжок, 402 від HF — лише одна з причин, тож
+        # таке повідомлення там вводило б в оману: показуємо причини по моделях.
+        if "усі моделі відмовили" in reason:
+            messages.append(
+                _note(
+                    "**Зараз не відповіла жодна модель** (основна і резервні). Спробуйте "
+                    f"за хвилину.\n\n`{reason.split('->', 1)[-1].strip()[:400]}`"
+                )
+            )
+        elif "402" in reason or "credit" in reason.lower() or "payment" in reason.lower():
             messages.append(
                 _note(
                     "**Місячний ліміт інференсу вичерпано.** Демо працює на безкоштовних "
