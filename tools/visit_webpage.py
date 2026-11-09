@@ -4,6 +4,32 @@ import re
 import requests
 import markdownify
 
+# Вікіпедія та частина інших сайтів віддають 403 на стандартний `python-requests/x.y`:
+# їхні правила вимагають, щоб бот назвався і дав спосіб зв'язку. Даємо адресу Space.
+HEADERS = {
+    "User-Agent": (
+        "ResearchAgentDemo/1.0 "
+        "(+https://huggingface.co/spaces/LeonidShamarin/First_agent_template) "
+        f"python-requests/{requests.__version__}"
+    ),
+    "Accept-Language": "uk,en;q=0.8",
+}
+
+
+def _main_html(html: str) -> str:
+    """Основний вміст сторінки: <main>, інакше <article>, інакше <body>, без
+    скриптів, стилів і навігації. Якщо розбір не вдався — сторінка як є."""
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return html
+    soup = BeautifulSoup(html, "html.parser")
+    node = soup.find("main") or soup.find("article") or soup.body or soup
+    for tag in node.find_all(["script", "style", "noscript", "nav", "header", "footer", "aside", "form"]):
+        tag.decompose()
+    return str(node)
+
+
 class VisitWebpageTool(Tool):
     name = "visit_webpage"
     description = "Visits a webpage at the given url and reads its content as a markdown string. Use this to browse webpages."
@@ -23,11 +49,12 @@ class VisitWebpageTool(Tool):
             ) from e
         try:
             # Send a GET request to the URL with a 20-second timeout
-            response = requests.get(url, timeout=20)
+            response = requests.get(url, timeout=20, headers=HEADERS)
             response.raise_for_status()  # Raise an exception for bad status codes
 
-            # Convert the HTML content to Markdown
-            markdown_content = markdownify(response.text).strip()
+            # Лише основний вміст: на Вікіпедії перші 10 000 символів повної сторінки
+            # були меню й навігацією, і до самої статті агент не доходив.
+            markdown_content = markdownify(_main_html(response.text)).strip()
 
             # Remove multiple line breaks
             markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content)

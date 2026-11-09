@@ -5,6 +5,7 @@ smolagents==1.13.0
 # Інструменти агента: пошук і читання сторінки.
 duckduckgo_search
 markdownify
+beautifulsoup4
 requests
 
 pytz
