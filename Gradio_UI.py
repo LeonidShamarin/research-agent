@@ -109,15 +109,16 @@ def pull_messages_from_step(
             yield gr.ChatMessage(role="assistant", content=str(step_log.error), metadata={"title": "💥 Error"})
 
         # Calculate duration and token information
+        # Провайдер може не віддати лічильники токенів (None) — тоді просто
+        # не показуємо їх. Раніше `{None:,}` валив увесь запуск на першому кроці.
         step_footnote = f"{step_number}"
-        if hasattr(step_log, "input_token_count") and hasattr(step_log, "output_token_count"):
-            token_str = (
-                f" | Input-tokens:{step_log.input_token_count:,} | Output-tokens:{step_log.output_token_count:,}"
-            )
-            step_footnote += token_str
-        if hasattr(step_log, "duration"):
-            step_duration = f" | Duration: {round(float(step_log.duration), 2)}" if step_log.duration else None
-            step_footnote += step_duration
+        tokens_in = getattr(step_log, "input_token_count", None)
+        tokens_out = getattr(step_log, "output_token_count", None)
+        if isinstance(tokens_in, int) and isinstance(tokens_out, int):
+            step_footnote += f" | Input-tokens:{tokens_in:,} | Output-tokens:{tokens_out:,}"
+        duration = getattr(step_log, "duration", None)
+        if duration:
+            step_footnote += f" | Duration: {round(float(duration), 2)}"
         step_footnote = f"""<span style="color: #bbbbc2; font-size: 12px;">{step_footnote}</span> """
         yield gr.ChatMessage(role="assistant", content=f"{step_footnote}")
         yield gr.ChatMessage(role="assistant", content="-----")
