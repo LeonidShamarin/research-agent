@@ -197,7 +197,8 @@ def load_prompt_templates() -> dict:
 
 # Резервні OpenAI-сумісні бекенди на наших ключах. Основна модель — HF-інференс
 # (HfApiModel). Якщо HF недоступний (401 без токена, квота, збій) — пробуємо ці по
-# черзі. Порядок: одразу після HF — Groq, далі решта спільних ключів з ai-keys.env, ключі2.txt в останню чергу; відсутні
+# черзі. Порядок: одразу після HF — Gemini (на питанні про час 3 чисті кроки),
+# потім Groq (gpt-oss-120b там же 7 кроків з помилками формату коду), далі решта спільних ключів з ai-keys.env, ключі2.txt в останню чергу; відсутні
 # пропускаються, дублі (провайдер, ключ) згортаються. Без жодного додаткового
 # ключа агент працює рівно як раніше — тільки на HF.
 _OPENAI_COMPAT = {
@@ -208,7 +209,7 @@ _OPENAI_COMPAT = {
     "xai": ("https://api.x.ai/v1", "grok-2-latest"),
 }
 _BACKUP_CHAIN = [
-    ("groq", "GROQ_API_KEY"), ("gemini", "GEMINI_API_KEY"),
+    ("gemini", "GEMINI_API_KEY"), ("groq", "GROQ_API_KEY"),
     ("openai", "OPENAI_API_KEY"), ("xai", "XAI_API_KEY"),
     ("gemini", "GEMINI_API_KEY_2"), ("gemini", "GEMINI_API_KEY_3"), ("groq", "GROQ_API_KEY_2"),
 ]
