@@ -236,6 +236,14 @@ class FallbackModel(Model):
                 errors.append(f"{label}: {str(exc)[:150]}")
                 logger.warning("модель %s недоступна: %s", label, str(exc)[:200])
                 continue
+            # Gemini через OpenAI-сумісний ендпоінт часом віддає content=None
+            # (0 токенів). Агент тоді падав на розборі коду і втрачав крок, тож
+            # порожня відповідь — такий самий збій: беремо наступну модель.
+            content = getattr(result, "content", None)
+            if not (isinstance(content, str) and content.strip()) and not getattr(result, "tool_calls", None):
+                errors.append(f"{label}: порожня відповідь")
+                logger.warning("модель %s повернула порожню відповідь", label)
+                continue
             self.last_input_token_count = getattr(model, "last_input_token_count", None)
             self.last_output_token_count = getattr(model, "last_output_token_count", None)
             return result
